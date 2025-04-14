@@ -1,0 +1,26 @@
+{
+    "dependencies": {
+        "@matter/main": "0.12.6",
+        "@matter/nodejs-ble": "0.12.6",
+        "@project-chip/matter.js": "0.12.6",
+        "mqtt": "^5.11.0"
+    },
+    "devDependencies": {
+        "@types/node": "^22.14.0",
+        "typescript": "~5.7.3"
+    },
+    "name": "matter-app",
+    "version": "0.1.0",
+    "type": "module",
+    "scripts": {
+        "prepare": "tsc",
+        "build": "tsc",
+        "app": "node --enable-source-maps dist/ControllerNode.js",
+        "qr": "node --enable-source-maps dist/qr.js",
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "clean": "node -e 'fs.rmSync(\"dist\", { recursive: true, force: true })'",
+        "watch": "tsc --watch"
+    },
+    "description": "Controller example to commission and connect devices",
+    "author": "user.name=msazanov <user.email=msazanov@gmail.com>"
+}
