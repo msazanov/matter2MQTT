@@ -1,0 +1,10 @@
+{
+  "mqtt": {
+    "broker": "mqtt://localhost",
+    "port": 1883,
+    "username": "",
+    "password": "",
+    "clientId": "matter2mqtt",
+    "topicPrefix": "matter/"
+  }
+}

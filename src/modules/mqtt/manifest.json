@@ -1,0 +1,10 @@
+{
+    "id": "mqtt",
+    "name": "MQTT Integration",
+    "version": "1.0.0",
+    "description": "Module providing MQTT connectivity and internal API",
+    "dependencies": ["config"],
+    "provides": ["mqtt-service"],
+    "tags": ["mqtt", "integration", "core"]
+  }
+  

@@ -1,26 +1,42 @@
 {
+    "name": "matter2mqtt",
+    "version": "1.0.0",
+    "description": "Matter to MQTT Bridge Server",
+    "main": "dist/matter2mqtt.js",
+    "scripts": {
+        "build": "tsc && copyfiles -u 2 'src/modules/**/*.json' 'dist/modules/'",
+        "start": "node dist/matter2mqtt.js",
+        "dev": "ts-node src/matter2mqtt.ts",
+        "dev:watch": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/matter2mqtt.ts",
+        "lint": "eslint . --ext .ts"
+    },
+    "keywords": [
+        "matter",
+        "mqtt",
+        "iot",
+        "smart-home"
+    ],
+    "author": "",
+    "license": "MIT",
     "dependencies": {
         "@matter/main": "0.12.6",
         "@matter/nodejs-ble": "0.12.6",
         "@project-chip/matter.js": "0.12.6",
-        "mqtt": "^5.11.0"
+        "@types/mqtt": "^0.0.34",
+        "commander": "^11.0.0",
+        "fs-extra": "^11.1.1",
+        "mqtt": "^4.3.8"
     },
     "devDependencies": {
-        "@types/node": "^22.14.0",
-        "typescript": "~5.7.3"
-    },
-    "name": "matter-app",
-    "version": "0.1.0",
-    "type": "module",
-    "scripts": {
-        "prepare": "tsc",
-        "build": "tsc",
-        "app": "node --enable-source-maps dist/ControllerNode.js",
-        "qr": "node --enable-source-maps dist/qr.js",
-        "test": "echo \"Error: no test specified\" && exit 1",
-        "clean": "node -e 'fs.rmSync(\"dist\", { recursive: true, force: true })'",
-        "watch": "tsc --watch"
-    },
-    "description": "Controller example to commission and connect devices",
-    "author": "user.name=msazanov <user.email=msazanov@gmail.com>"
+        "@types/commander": "^2.12.2",
+        "@types/fs-extra": "^11.0.1",
+        "@types/node": "^18.16.16",
+        "@typescript-eslint/eslint-plugin": "^5.59.9",
+        "@typescript-eslint/parser": "^5.59.9",
+        "copyfiles": "^2.4.1",
+        "eslint": "^8.42.0",
+        "nodemon": "^3.1.9",
+        "ts-node": "^10.9.1",
+        "typescript": "^5.1.3"
+    }
 }
