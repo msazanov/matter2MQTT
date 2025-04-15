@@ -1,40 +1,78 @@
 import * as fs from 'fs-extra';
 import path from 'path';
 import { ModuleContext, ModuleInterface, ModuleManifest } from './types';
+import { ConfigManager } from './config';
+import { ConfigOptions } from './config/types';
+import { logger } from './logger';
 
 export class ModuleLoader {
-  private modules: Map<string, ModuleInterface> = new Map();
+  private modules: Map<string, any> = new Map();
   private modulesPath: string;
   private loadOrder: string[] = [];
   private api: { [moduleId: string]: any } = {};
+  private configManager: ConfigManager;
 
-  constructor(modulesPath = './dist/modules') {
+  constructor(modulesPath = './dist/modules', options: ConfigOptions) {
     this.modulesPath = path.resolve(modulesPath);
-    console.log(`M2M: Module loader initialized with path: ${this.modulesPath}`);
+    logger.info(`Module loader initialized with path: ${this.modulesPath}`, { context: 'Loader' });
+    this.configManager = new ConfigManager(options);
+  }
+
+  async initialize(): Promise<void> {
+    // Initialize config first
+    await this.configManager.initialize();
+    
+    // Register config as a system module
+    this.modules.set('config', {
+      api: this.configManager.getAPI()
+    });
   }
 
   getApi(moduleId: string): any {
-    return this.api[moduleId] || null;
+    const module = this.modules.get(moduleId);
+    if (!module) {
+      throw new Error(`Module ${moduleId} not found`);
+    }
+    return module.api;
   }
 
-  async discoverAndLoadAllModules(initOptions: any = {}): Promise<void> {
-    const moduleDirs = await fs.readdir(this.modulesPath);
-    for (const moduleId of moduleDirs) {
-      const moduleDirPath = path.join(this.modulesPath, moduleId);
-      const manifestPath = path.join(moduleDirPath, 'manifest.json');
-      if (fs.existsSync(manifestPath)) {
-        await this.loadModule(moduleId, initOptions);
+  async discoverAndLoadAllModules(): Promise<void> {
+    // Config is already loaded as system module
+    logger.info('Discovering and loading all modules', { context: 'Loader' });
+    
+    try {
+      logger.debug(`Reading directory: ${this.modulesPath}`, { context: 'Loader' });
+      const moduleDirs = await fs.readdir(this.modulesPath);
+      logger.debug(`Found directories: ${moduleDirs.join(', ')}`, { context: 'Loader' });
+      
+      for (const moduleId of moduleDirs) {
+        const modulePath = path.join(this.modulesPath, moduleId);
+        const manifestPath = path.join(modulePath, 'manifest.json');
+        
+        logger.debug(`Checking module: ${moduleId}, manifest path: ${manifestPath}`, { context: 'Loader' });
+        
+        if (fs.existsSync(manifestPath)) {
+          logger.info(`Found module: ${moduleId}`, { context: 'Loader' });
+          await this.loadModule(moduleId);
+        } else {
+          logger.debug(`No manifest found for: ${moduleId}`, { context: 'Loader' });
+        }
       }
+      
+      logger.info(`All modules loaded. Loaded modules: ${this.loadOrder.join(', ')}`, { context: 'Loader' });
+    } catch (error) {
+      logger.error(`Failed to discover modules: ${error instanceof Error ? error.message : String(error)}`, { context: 'Loader' });
+      throw error;
     }
   }
 
   async loadModule(moduleId: string, initOptions: any = {}): Promise<any> {
     if (this.modules.has(moduleId)) {
-      console.log(`M2M: Module ${moduleId} is already loaded`);
+      logger.debug(`Module ${moduleId} is already loaded`, { context: 'Loader' });
       return this.getModuleContext(moduleId);
     }
 
-    console.log(`M2M: Loading module ${moduleId}`);
+    logger.info(`Loading module ${moduleId}`, { context: 'Loader' });
 
     const modulePath = path.join(this.modulesPath, moduleId);
     const manifestPath = path.join(modulePath, 'manifest.json');
@@ -46,11 +84,19 @@ export class ModuleLoader {
     const manifest: ModuleManifest = await fs.readJSON(manifestPath);
     const dependencyContexts: Record<string, any> = {};
 
+    // Always include config module context since it's a system module
+    dependencyContexts['config'] = {
+      api: this.configManager.getAPI()
+    };
+
+    // Load other dependencies
     for (const depId of manifest.dependencies || []) {
-      if (!this.modules.has(depId)) {
+      if (depId !== 'config' && !this.modules.has(depId)) {
         await this.loadModule(depId, initOptions);
       }
-      dependencyContexts[depId] = this.getModuleContext(depId);
+      if (depId !== 'config') {
+        dependencyContexts[depId] = this.getModuleContext(depId);
+      }
     }
 
     const moduleFile = path.join(modulePath, 'index.js');
@@ -87,14 +133,14 @@ export class ModuleLoader {
       this.api[moduleId] = context.api;
     }
 
-    console.log(`M2M: Module ${moduleId} loaded successfully`);
+    logger.info(`Module ${moduleId} loaded successfully`, { context: 'Loader' });
     return context;
   }
 
   async unloadModule(moduleId: string): Promise<void> {
     const module = this.modules.get(moduleId);
     if (!module) {
-      console.log(`M2M: Module ${moduleId} is not loaded`);
+      logger.debug(`Module ${moduleId} is not loaded`, { context: 'Loader' });
       return;
     }
 
@@ -106,25 +152,38 @@ export class ModuleLoader {
       throw new Error(`Cannot unload module ${moduleId} as it is required by: ${dependentIds}`);
     }
 
-    console.log(`M2M: Unloading module ${moduleId}`);
+    logger.info(`Unloading module ${moduleId}`, { context: 'Loader' });
 
     if (module.cleanup && typeof module.cleanup === 'function') {
-      await module.cleanup(); // <--- вызов без аргументов!
+      await module.cleanup();
     }
 
     this.modules.delete(moduleId);
     this.loadOrder = this.loadOrder.filter(id => id !== moduleId);
     delete this.api[moduleId];
 
-    console.log(`M2M: Module ${moduleId} unloaded successfully`);
+    logger.info(`Module ${moduleId} unloaded successfully`, { context: 'Loader' });
   }
 
   async unloadAllModules(): Promise<void> {
-    const unloadOrder = [...this.loadOrder].reverse();
-    for (const moduleId of unloadOrder) {
-      await this.unloadModule(moduleId);
+    // Unload modules in reverse order of loading
+    const moduleIds = [...this.loadOrder].reverse();
+    
+    for (const moduleId of moduleIds) {
+      const module = this.modules.get(moduleId);
+      if (module && module.cleanup) {
+        logger.info(`Cleaning up module ${moduleId}`, { context: 'Loader' });
+        try {
+          await module.cleanup();
+        } catch (error) {
+          logger.error(`Failed to cleanup module ${moduleId}: ${error instanceof Error ? error.message : String(error)}`, { context: 'Loader' });
+        }
+      }
     }
-    console.log('M2M: All modules unloaded');
+    
+    this.modules.clear();
+    this.loadOrder = [];
+    this.api = {};
   }
 
   getModuleContext(moduleId: string): ModuleContext | null {

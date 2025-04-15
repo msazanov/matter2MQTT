@@ -1,10 +1,12 @@
 import { MqttService } from './services/mqtt-service';
 import { MqttContext, MqttInitOptions, MqttConfig } from './types';
+import { getApi } from '../../core/api';
 
 let mqttService: MqttService | null = null;
+const logger = getApi('logger').api;
 
 async function initialize({ config }: MqttInitOptions): Promise<MqttContext> {
-  console.log('M2M:mqtt: Initializing MQTT module');
+  logger.info('Initializing MQTT module');
 
   const configApi = config.api;
   let mqttConfig: MqttConfig = configApi.getConfig('mqtt');
@@ -19,7 +21,7 @@ async function initialize({ config }: MqttInitOptions): Promise<MqttContext> {
       topicPrefix: 'matter/'
     };
     await configApi.setConfig('mqtt', mqttConfig);
-    console.log('M2M:mqtt: Default MQTT config created');
+    logger.info('Default MQTT config created');
   }
 
   mqttService = new MqttService(mqttConfig);
@@ -37,7 +39,7 @@ async function initialize({ config }: MqttInitOptions): Promise<MqttContext> {
 }
 
 async function cleanup(): Promise<void> {
-  console.log('M2M:mqtt: Cleaning up MQTT module');
+  logger.info('Cleaning up MQTT module');
   if (mqttService) {
     await mqttService.disconnect();
     mqttService = null;

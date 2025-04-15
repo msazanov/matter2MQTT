@@ -1,3 +1,5 @@
+import { ConfigAPI } from '../../core/config/types';
+
 export interface MqttConfig {
     broker: string;
     port: number;
@@ -8,7 +10,9 @@ export interface MqttConfig {
   }
   
   export interface MqttInitOptions {
-    config: any; // модуль config
+    config: {
+      api: ConfigAPI;
+    };
   }
   
   export interface MqttAPI {

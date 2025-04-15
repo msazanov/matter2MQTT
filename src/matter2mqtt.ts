@@ -2,14 +2,9 @@ import * as fs from 'fs-extra';
 import path from 'path';
 import { Command } from 'commander';
 import { ModuleLoader } from './core/module-loader';
+import { logger } from './core/logger';
 
 const program = new Command();
-
-const log = {
-  info: (message: string) => console.log(`M2M: ${message}`),
-  error: (message: string) => console.error(`M2M ERROR: ${message}`),
-  debug: (message: string) => process.env.DEBUG && console.log(`M2M DEBUG: ${message}`)
-};
 
 const packageJson = require('../package.json');
 program
@@ -22,47 +17,74 @@ const options = program.opts();
 
 if (options.debug) {
   process.env.DEBUG = 'true';
-  log.info('Debug mode enabled');
+  logger.setLogLevel('debug');
+  logger.info('Debug mode enabled');
 }
 
 const configPath = path.resolve(options.config);
-log.info(`Using config file: ${configPath}`);
+logger.info(`Using config file: ${configPath}`);
 
 const configDir = path.dirname(configPath);
 fs.ensureDirSync(configDir);
 
+export class Matter2MQTT {
+  private moduleLoader: ModuleLoader;
+
+  constructor(options: { configPath: string; modulesPath?: string }) {
+    this.moduleLoader = new ModuleLoader(options.modulesPath, {
+      configPath: options.configPath
+    });
+  }
+
+  async start(): Promise<void> {
+    await this.moduleLoader.initialize();
+    await this.moduleLoader.discoverAndLoadAllModules();
+  }
+
+  async stop(): Promise<void> {
+    await this.moduleLoader.unloadAllModules();
+  }
+
+  getApi(moduleId: string): any {
+    return this.moduleLoader.getApi(moduleId);
+  }
+}
+
 async function main() {
   try {
-    log.info('Starting Matter2MQTT Server');
+    logger.info('Starting Matter2MQTT Server');
 
-    const moduleLoader = new ModuleLoader();
+    const matter2mqtt = new Matter2MQTT({ configPath });
     
-    // Динамическое обнаружение и загрузка всех модулей из папки modules
-    await moduleLoader.discoverAndLoadAllModules({ configPath });
+    await matter2mqtt.start();
 
     // Универсальный обработчик завершения работы
     async function shutdown() {
-      log.info('Shutting down Matter2MQTT Server');
-      // Сервер динамически выгружает ВСЕ модули
-      await moduleLoader.unloadAllModules();
+      logger.info('Shutting down Matter2MQTT Server');
+      try {
+        await matter2mqtt.stop();
+        logger.info('Matter2MQTT Server shutdown complete');
+      } catch (error) {
+        logger.error(`Error during shutdown: ${error}`);
+      }
       process.exit(0);
     }
 
     process.on('SIGINT', () => {
-      log.info('Received SIGINT signal');
+      logger.info('Received SIGINT signal');
       shutdown();
     });
 
     process.on('SIGTERM', () => {
-      log.info('Received SIGTERM signal');
+      logger.info('Received SIGTERM signal');
       shutdown();
     });
 
-    log.info('Matter2MQTT Server started successfully');
+    logger.info('Matter2MQTT Server started successfully');
 
   } catch (error: any) {
-    log.error(`Failed to start Matter2MQTT Server: ${error.message || error}`);
-    console.error(error);
+    logger.error(`Failed to start Matter2MQTT Server: ${error.message || error}`);
+    logger.error('Stack trace:', { error: error.stack });
     process.exit(1);
   }
 }

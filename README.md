@@ -1,4 +1,3 @@
-
 # Matter2MQTT Server
 
 Matter2MQTT is a modular server designed to bridge Matter-enabled IoT devices with MQTT brokers, providing seamless integration for smart home automation and IoT applications.
@@ -21,19 +20,19 @@ Matter2MQTT uses a dynamic modular architecture:
 
 ---
 
-## Module List (TODO)
+## Module List
 
 ### ✅ Completed Modules
 
 - **config**: Centralized configuration management module for other modules.
 - **mqtt**: MQTT integration and internal messaging module.
+- **logger**: Advanced logging and monitoring capabilities.
 
 ### 📌 Planned Modules
 
 - **matter-controller**: Device control and state tracking.
 - **device-registry**: Device discovery and registration.
 - **commissioning**: Matter device commissioning and pairing.
-- **logging**: Advanced logging and monitoring capabilities.
 - **database**: Persistent storage with SQLite and optional InfluxDB support.
 
 ---
@@ -64,7 +63,7 @@ Every module must contain a `manifest.json`:
   "name": "My Module",
   "version": "1.0.0",
   "description": "Brief description of what the module does",
-  "dependencies": ["config", "mqtt"],
+  "dependencies": ["config", "mqtt", "logger"],
   "provides": ["my-service"],
   "tags": ["tag1", "tag2"]
 }
@@ -92,12 +91,16 @@ export default { initialize, cleanup };
 The `initialize()` function receives the context containing APIs of dependent modules:
 
 ```typescript
-async function initialize({config, mqtt}: any): Promise<any> {
+async function initialize({config, mqtt, logger}: any): Promise<any> {
   const configApi = config.api;
   const mqttApi = mqtt.api;
+  const loggerApi = logger.api;
+
+  // Use logger with automatic context detection
+  loggerApi.info('Module initialized');
 
   mqttApi.subscribe('example/topic', (topic, message) => {
-    console.log(message.toString());
+    loggerApi.debug(`Received message on ${topic}: ${message.toString()}`);
   });
 
   const myConfig = configApi.getConfig('my-module') || { key: 'default' };
@@ -149,6 +152,16 @@ mqttApi.publish('topic', 'message');
 | `subscribe(topic, handler)` | Subscribes to an MQTT topic. |
 | `unsubscribe(topic)` | Unsubscribes from an MQTT topic. |
 
+### Logger Module API
+
+| Method | Description |
+|--------|-------------|
+| `debug(message, options?)` | Logs a debug message. |
+| `info(message, options?)` | Logs an info message. |
+| `warn(message, options?)` | Logs a warning message. |
+| `error(message, options?)` | Logs an error message. |
+| `setLogLevel(level)` | Sets the logging level. |
+
 ---
 
 ## Development Guidelines
@@ -156,6 +169,8 @@ mqttApi.publish('topic', 'message');
 - Modules must handle their own configuration via the provided `config` module.
 - Modules must manage their own resource lifecycle.
 - Modules must never be explicitly referenced in the core server logic; always use dynamic loading.
+- Always use the logger module for logging; avoid direct console usage.
+- Logger automatically detects module context from the call stack.
 
 ---
 
@@ -177,5 +192,21 @@ Use `--debug` flag to enable debug logging:
 npm start -- --debug
 ```
 
+Debug logging includes:
+- All MQTT messages (published and received)
+- Module lifecycle events
+- Configuration changes
+- Detailed error information
+
 ---
+
+## Changelog
+
+### v2.0.0
+- Added automatic module context detection in logger
+- Improved MQTT module logging
+- Removed direct console usage in favor of logger module
+- Added debug-level logging for all MQTT messages
+- Enhanced error handling and reporting
+- Updated module documentation
 

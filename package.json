@@ -5,6 +5,7 @@
     "main": "dist/matter2mqtt.js",
     "scripts": {
         "build": "tsc && copyfiles -u 2 'src/modules/**/*.json' 'dist/modules/'",
+        "clean-build": "rm -rf dist config/ && tsc && copyfiles -u 2 'src/modules/**/*.json' 'dist/modules/'",
         "start": "node dist/matter2mqtt.js",
         "dev": "ts-node src/matter2mqtt.ts",
         "dev:watch": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/matter2mqtt.ts",

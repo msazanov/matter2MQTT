@@ -3,3 +3,4 @@ dist/
 .vscode/
 v1/
 package-lock.json
+config/

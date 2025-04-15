@@ -64,3 +64,14 @@ export interface ModuleManifest {
      */
     emit(event: string, ...args: any[]): void;
   }
+
+export interface ModuleAPI {
+  initialize?(): Promise<void>;
+  cleanup?(): Promise<void>;
+  get?(key: string): any;
+  set?(key: string, value: any): void;
+  delete?(key: string): void;
+  has?(key: string): boolean;
+  clear?(): void;
+  api?: any;
+}
